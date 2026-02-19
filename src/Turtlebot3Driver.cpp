@@ -40,24 +40,40 @@ bool Turtlebot3Driver::obstacleDetected() const {
     return isObstacleDetected;
 }
 
-void Turtlebot3Driver::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan) {
-    const double ANGLE_RANGE = 0.032;
+void Turtlebot3Driver::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan)
+{
+    const double ANGLE_RANGE_DEG = 1;
     const double MIN_DIST_FROM_OBSTACLE = 0.5;
 
-    double angle_min = scan->angle_min;
-    double angle_increment = scan->angle_increment;
-    
-    int start_index = static_cast<int>((-ANGLE_RANGE / 2 - angle_min) / angle_increment);
-    int end_index = static_cast<int>((ANGLE_RANGE / 2 - angle_min) / angle_increment);
+    const int n = static_cast<int>(scan->ranges.size());
+    if (n <= 0 || scan->angle_increment <= 0.0) {
+        isObstacleDetected = false;
+        return;
+    }
 
-    if (start_index < 0) start_index = 0;
-    if (end_index >= (int)scan->ranges.size()) end_index = scan->ranges.size() - 1;
+    const double a_min_deg = scan->angle_min * (180.0 / M_PI);
+    const double a_inc_deg = scan->angle_increment * (180.0 / M_PI);
 
-    for (int i = start_index; i <= end_index; ++i) {
-        if (scan->ranges[i] < MIN_DIST_FROM_OBSTACLE && scan->ranges[i] > 0.01) {
+    int centre_idx = static_cast<int>(std::llround((0.0 - a_min_deg) / a_inc_deg));
+    centre_idx = ((centre_idx % n) + n) % n;
+
+    const int half_steps = std::max(0, static_cast<int>(std::floor((ANGLE_RANGE_DEG * 0.5) / a_inc_deg)));
+
+    auto is_obstacle = [&](float r) -> bool {
+        if (!std::isfinite(r)) return false;
+        if (r <= 0.01f) return false;
+        return r < static_cast<float>(MIN_DIST_FROM_OBSTACLE);
+    };
+
+    for (int offset = -half_steps; offset <= half_steps; ++offset) {
+        const int idx = (centre_idx + offset + n) % n;
+
+        if (is_obstacle(scan->ranges[idx])) {
             isObstacleDetected = true;
             return;
         }
     }
+
     isObstacleDetected = false;
 }
+
