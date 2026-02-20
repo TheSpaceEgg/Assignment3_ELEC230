@@ -13,8 +13,6 @@ int main(int argc, char** argv) {
         // node->turn(-1,0) - Turns the robot clockwise at speed 1 rad/s
         // ----------------------------- ALGORITHM GOES HERE -----------------------------
     
-      
-        node->moveForward();
         
       
         // --------------------------------------------------------------------------------
